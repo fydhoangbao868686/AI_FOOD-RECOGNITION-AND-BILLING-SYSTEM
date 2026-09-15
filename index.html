@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Food Detection AI · CNN</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  * { margin: 0; padding: 0; }
+
+  :root {
+    --burgundy: #561C24;
+    --maroon:   #6D2932;
+    --taupe:    #C7B7A3;
+    --cream:    #E8D8C4;
+    --paper:    #F8F0E6;
+    --paper-2:  #FFF8EF;
+    --ink:      #2C1718;
+    --muted:    #866F65;
+    --line:     rgba(86, 28, 36, .16);
+    --soft:     rgba(109, 41, 50, .08);
+    --success:  #4B8B54;
+    --danger:   #9B2D30;
+
+    --z1: #561C24;
+    --z2: #9A6B48;
+    --z3: #7E7B5D;
+    --z4: #6D2932;
+    --z5: #B59C7C;
+  }
+
+  body {
+    min-height: 100vh;
+    color: var(--ink);
+    font-family: "Segoe UI", Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    background:
+      radial-gradient(circle at top left, rgba(232,216,196,.96), rgba(248,240,230,.92) 38%, rgba(255,248,239,.98) 70%),
+      linear-gradient(135deg, var(--cream), var(--paper));
+  }
+
+  button, select, input { font: inherit; }
+
+  .app {
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 284px minmax(620px, 1fr) 376px;
+    grid-template-rows: 96px 1fr;
+  }
+
+  .topbar {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 18px 24px;
+    background: rgba(255, 248, 239, .82);
+    backdrop-filter: blur(18px);
+    border-bottom: 1px solid var(--line);
+    box-shadow: 0 10px 30px rgba(86, 28, 36, .04);
+  }
+
+  .brand { display: flex; align-items: center; gap: 14px; min-width: 360px; }
+  .brand-icon {
+    width: 58px; height: 58px; border-radius: 18px;
+    display: grid; place-items: center;
+    color: var(--paper-2);
+    background: linear-gradient(135deg, var(--burgundy), var(--maroon));
+    box-shadow: 0 14px 26px rgba(86, 28, 36, .22);
+  }
+  .brand-title { font-size: 30px; line-height: 1; font-weight: 820; letter-spacing: -.7px; color: var(--burgundy); }
+  .brand-subtitle { margin-top: 6px; font-size: 15px; color: var(--muted); }
+
+  .top-actions { display: flex; align-items: center; gap: 12px; margin-left: auto; }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    min-height: 42px; padding: 0 16px; border-radius: 12px;
+    color: var(--maroon);
+    background: rgba(199, 183, 163, .45);
+    border: 1px solid rgba(86, 28, 36, .10);
+    font-weight: 720;
+    white-space: nowrap;
+  }
+  .dot { width: 10px; height: 10px; border-radius: 99px; background: var(--muted); box-shadow: 0 0 0 4px rgba(134,111,101,.12); }
+  .dot.live { background: var(--success); box-shadow: 0 0 0 4px rgba(75,139,84,.16); }
+  .dot.model { background: var(--burgundy); box-shadow: 0 0 0 4px rgba(86,28,36,.13); }
+
+  .btn {
+    min-height: 44px; border: 1px solid transparent; border-radius: 12px;
+    padding: 0 18px; display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+    cursor: pointer; user-select: none; font-size: 14px; font-weight: 750;
+    transition: transform .12s ease, box-shadow .16s ease, opacity .16s ease, background .16s ease;
+    white-space: nowrap;
+  }
+  .btn:active { transform: translateY(1px) scale(.99); }
+  .btn:disabled { opacity: .48; cursor: not-allowed; transform: none; box-shadow: none; }
+  .btn-primary { color: var(--paper-2); background: linear-gradient(135deg, var(--burgundy), var(--maroon)); box-shadow: 0 14px 24px rgba(86, 28, 36, .18); }
+  .btn-primary:hover:not(:disabled) { box-shadow: 0 16px 28px rgba(86, 28, 36, .24); }
+  .btn-outline { color: var(--burgundy); background: rgba(255,248,239,.72); border-color: rgba(86,28,36,.18); }
+  .btn-outline:hover:not(:disabled) { background: rgba(232,216,196,.52); }
+  .btn-soft { color: var(--burgundy); background: rgba(199,183,163,.35); border-color: rgba(86,28,36,.12); }
+  .btn-danger { color: var(--paper-2); background: var(--maroon); }
+
+  .sidebar { padding: 20px 18px 24px 22px; border-right: 1px solid var(--line); }
+  .nav { display: grid; gap: 9px; margin-bottom: 26px; }
+  .nav-item { min-height: 52px; display: flex; align-items: center; gap: 13px; padding: 0 15px; border-radius: 13px; color: var(--ink); font-weight: 700; }
+  .nav-item.active { color: var(--paper-2); background: linear-gradient(135deg, var(--burgundy), rgba(109,41,50,.68)); box-shadow: 0 14px 25px rgba(86, 28, 36, .18); }
+  .nav-icon { width: 24px; height: 24px; display: grid; place-items: center; }
+
+  .side-card { border: 1px solid var(--line); background: rgba(255,248,239,.66); border-radius: 17px; padding: 15px; box-shadow: 0 12px 26px rgba(86,28,36,.045); margin-bottom: 12px; }
+  .side-row { display: flex; align-items: center; gap: 12px; }
+  .side-icon { width: 42px; height: 42px; flex: 0 0 42px; border-radius: 14px; display: grid; place-items: center; color: var(--paper-2); background: linear-gradient(135deg, var(--burgundy), var(--maroon)); box-shadow: 0 10px 18px rgba(86,28,36,.14); }
+  .side-title { font-size: 15px; font-weight: 790; }
+  .online { margin-left: auto; display:flex; align-items:center; gap:7px; color: var(--success); font-size: 12px; font-weight: 800; }
+  .side-meta { margin-left: 54px; margin-top: 7px; font-size: 12.5px; line-height: 1.7; color: var(--muted); }
+  .system-card { margin-top: 42px; }
+  .system-ok { margin-top: 12px; display:flex; align-items:center; gap:8px; color: var(--muted); font-size: 12.5px; }
+
+  .main { padding: 20px 18px 28px; overflow: auto; }
+  .rightbar { padding: 20px 24px 28px 0; overflow: auto; }
+
+  .panel { background: rgba(255,248,239,.72); border: 1px solid var(--line); border-radius: 19px; box-shadow: 0 18px 36px rgba(86,28,36,.055); }
+  .camera-card { padding: 16px; }
+  .panel-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+  .section-title { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 820; color: var(--ink); }
+  .section-title .bullet { width: 14px; height: 14px; border-radius: 99px; background: var(--burgundy); box-shadow: 0 0 0 6px rgba(86,28,36,.08); }
+  .panel-tools { display: flex; align-items:center; gap: 8px; color: var(--burgundy); }
+  .tool-btn { width: 36px; height: 36px; border: 0; background: transparent; color: var(--burgundy); border-radius: 10px; cursor: pointer; }
+  .tool-btn:hover { background: rgba(199,183,163,.28); }
+
+  .camera-stage {
+    position: relative;
+    width: 100%;
+    aspect-ratio: var(--stage-aspect, 16 / 9);
+    min-height: 360px;
+    border-radius: 16px;
+    overflow: hidden;
+    background: #1b1615;
+    border: 1px solid rgba(86,28,36,.14);
+  }
+  .camera-stage video, .camera-stage img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center center;
+    display: block;
+    background: #1b1615;
+  }
+  .camera-stage img { display: none; }
+  .camera-stage img.show { display: block; }
+  .camera-stage video.hidden { display: none; }
+
+  #crop-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: auto;
+    z-index: 5;
+  }
+  .guide-frame {
+    position: absolute; border: 2px solid rgba(255,248,239,.96); border-radius: 16px;
+    box-shadow: 0 0 0 9999px rgba(44,23,24,.38), inset 0 0 0 2px rgba(86,28,36,.82);
+    pointer-events: none;
+    z-index: 1;
+  }
+  .guide-corner { position: absolute; width: 26px; height: 26px; border-color: var(--burgundy); border-style: solid; }
+  .guide-corner.tl { left: -2px; top: -2px; border-width: 4px 0 0 4px; border-radius: 14px 0 0 0; }
+  .guide-corner.tr { right: -2px; top: -2px; border-width: 4px 4px 0 0; border-radius: 0 14px 0 0; }
+  .guide-corner.bl { left: -2px; bottom: -2px; border-width: 0 0 4px 4px; border-radius: 0 0 0 14px; }
+  .guide-corner.br { right: -2px; bottom: -2px; border-width: 0 4px 4px 0; border-radius: 0 0 14px 0; }
+
+  .crop-box {
+    position: absolute;
+    border: 2px dashed var(--box-color);
+    border-radius: 13px;
+    background: color-mix(in srgb, var(--box-color) 14%, transparent);
+    cursor: grab;
+    pointer-events: auto;
+    touch-action: none;
+    min-width: 32px;
+    min-height: 32px;
+    z-index: 2;
+  }
+  .crop-box:active { cursor: grabbing; }
+  .crop-box:hover, .crop-box.active { border-style: solid; box-shadow: 0 0 0 3px color-mix(in srgb, var(--box-color) 22%, transparent); }
+  .crop-label {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    padding: 5px 10px; border-radius: 10px; background: rgba(255,248,239,.92); border: 1px solid color-mix(in srgb, var(--box-color) 45%, transparent);
+    color: var(--box-color); font-size: 13px; font-weight: 850; pointer-events: none; white-space: nowrap;
+  }
+  .crop-size {
+    position: absolute; left: 8px; bottom: 7px; padding: 3px 7px; border-radius: 7px;
+    background: rgba(44,23,24,.68); color: var(--paper-2); font-size: 10px; font-weight: 760; pointer-events: none;
+  }
+  .resize-handle {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border-radius: 6px;
+    background: var(--paper-2);
+    border: 2px solid var(--box-color);
+    box-shadow: 0 3px 8px rgba(44,23,24,.18);
+    pointer-events: auto;
+    z-index: 10;
+  }
+  .resize-handle[data-handle="nw"] { left:-7px; top:-7px; cursor:nwse-resize; }
+  .resize-handle[data-handle="ne"] { right:-7px; top:-7px; cursor:nesw-resize; }
+  .resize-handle[data-handle="sw"] { left:-7px; bottom:-7px; cursor:nesw-resize; }
+  .resize-handle[data-handle="se"] { right:-7px; bottom:-7px; cursor:nwse-resize; }
+  .resize-handle[data-handle="n"] { left:50%; top:-7px; transform:translateX(-50%); cursor:ns-resize; width:22px; height:12px; }
+  .resize-handle[data-handle="s"] { left:50%; bottom:-7px; transform:translateX(-50%); cursor:ns-resize; width:22px; height:12px; }
+  .resize-handle[data-handle="w"] { left:-7px; top:50%; transform:translateY(-50%); cursor:ew-resize; width:12px; height:22px; }
+  .resize-handle[data-handle="e"] { right:-7px; top:50%; transform:translateY(-50%); cursor:ew-resize; width:12px; height:22px; }
+
+  .empty-camera { position: absolute; inset: 0; display: grid; place-items: center; color: rgba(255,248,239,.82); text-align: center; padding: 34px; background: linear-gradient(135deg, rgba(86,28,36,.86), rgba(44,23,24,.9)); }
+  .empty-camera.hide { display: none; }
+  .empty-camera strong { display:block; font-size: 20px; margin-bottom: 8px; color: var(--paper-2); }
+  .empty-camera span { color: rgba(255,248,239,.72); line-height: 1.55; }
+
+  .flash { position: absolute; inset: 0; background: var(--paper-2); opacity: 0; pointer-events: none; transition: opacity .18s ease; }
+  .flash.active { opacity: .72; transition: opacity .04s ease; }
+
+  .camera-actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 14px; }
+
+  .guide-box { margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .guide-tip, .layout-box { border: 1px solid var(--line); background: rgba(232,216,196,.35); border-radius: 15px; padding: 13px 14px; color: var(--muted); line-height: 1.55; font-size: 13px; }
+  .guide-tip strong, .layout-box strong { color: var(--burgundy); display:block; margin-bottom: 4px; }
+  .layout-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 8px; }
+  .layout-select { width: 100%; min-height: 39px; border-radius: 11px; color: var(--burgundy); border: 1px solid rgba(86,28,36,.18); background: rgba(255,248,239,.82); padding: 0 12px; outline: none; font-weight: 700; }
+
+  .recent-card { margin-top: 14px; padding: 15px; }
+  .recent-head { display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px; }
+  .recent-title { font-weight: 820; display:flex; align-items:center; gap:8px; }
+  .recent-link { color: var(--burgundy); font-weight: 790; font-size: 13px; }
+  .recent-strip { display:grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .recent-thumb { position: relative; aspect-ratio: 16/7; border-radius: 12px; overflow: hidden; background: rgba(86,28,36,.12); border: 1px solid rgba(86,28,36,.12); }
+  .recent-thumb img { width: 100%; height: 100%; object-fit: contain; background: #1b1615; display:block; }
+  .time-badge { position:absolute; right:8px; bottom:7px; padding: 3px 7px; border-radius: 8px; background: rgba(44,23,24,.76); color: var(--paper-2); font-size: 11px; font-weight: 750; }
+
+  .result-panel { padding: 18px; margin-bottom: 14px; }
+  .result-list { display: grid; gap: 12px; margin-top: 14px; }
+  .result-row { display: grid; grid-template-columns: 14px 1fr auto 16px; align-items: center; gap: 12px; min-height: 32px; color: var(--ink); }
+  .result-dot { width: 9px; height: 9px; border-radius: 99px; background: var(--burgundy); }
+  .result-name { font-weight: 700; font-size: 14px; }
+  .pct { min-width: 58px; text-align: center; padding: 6px 9px; border-radius: 10px; background: rgba(232,216,196,.48); border: 1px solid rgba(86,28,36,.10); color: var(--burgundy); font-weight: 850; font-variant-numeric: tabular-nums; }
+  .chev { color: var(--muted); font-weight: 900; }
+
+  .detail-table { width:100%; border-collapse: collapse; margin-top: 14px; font-size: 14px; }
+  .detail-table th { padding: 0 0 10px; color: var(--muted); font-weight: 700; text-align:left; font-size: 12px; }
+  .detail-table th:last-child, .detail-table td:last-child { text-align: right; }
+  .detail-table td { border-top: 1px solid rgba(86,28,36,.10); padding: 10px 0; }
+  .detail-table strong { color: var(--burgundy); }
+
+  .stats-grid { margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; }
+  .stat { padding-left: 12px; border-left: 2px solid rgba(86,28,36,.16); }
+  .stat-label { color: var(--muted); font-size: 12px; margin-bottom: 5px; }
+  .stat-value { color: var(--burgundy); font-size: 15px; font-weight: 850; }
+  .right-actions { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+
+  .result-cards { margin-top: 14px; display: none; }
+  .result-cards.show { display: block; }
+  .result-header { display:flex; align-items:center; justify-content:space-between; margin-bottom: 12px; }
+  .result-header h2 { color: var(--burgundy); font-size: 19px; }
+  .total-badge { color: var(--burgundy); font-size: 23px; font-weight: 900; letter-spacing: -.4px; }
+  .items-grid { display:grid; grid-template-columns: repeat(5, 1fr); gap: 11px; }
+  .item-card { overflow:hidden; border-radius: 16px; background: rgba(255,248,239,.75); border: 1px solid var(--line); box-shadow: 0 12px 28px rgba(86,28,36,.045); }
+  .item-bar { height: 4px; }
+  .item-thumb { width:100%; aspect-ratio: 1.18; object-fit: contain; display:block; background: #1b1615; }
+  .item-body { padding: 11px 11px 12px; }
+  .item-label { color: var(--muted); text-transform: uppercase; letter-spacing:.6px; font-size:10px; font-weight:800; margin-bottom: 3px; }
+  .item-class { min-height: 36px; font-size: 13px; line-height: 1.35; font-weight: 850; color: var(--ink); }
+  .item-price { margin-top: 7px; color: var(--burgundy); font-weight: 900; }
+  .item-conf { margin-top: 5px; color: var(--muted); font-size: 11px; }
+  .conf-track { margin-top: 5px; height: 4px; border-radius: 99px; background: rgba(86,28,36,.11); overflow:hidden; }
+  .conf-fill { height:100%; border-radius: 99px; background: var(--burgundy); }
+
+  details.top5 { margin-top: 14px; background: rgba(255,248,239,.72); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+  details.top5 summary { cursor: pointer; padding: 14px 16px; font-weight: 850; color: var(--burgundy); }
+  .top5-grid { display:grid; grid-template-columns: repeat(5, 1fr); gap: 1px; background: rgba(86,28,36,.10); border-top: 1px solid rgba(86,28,36,.10); }
+  .top5-col { background: rgba(255,248,239,.88); padding: 12px; }
+  .top5-title { font-size: 11px; text-transform: uppercase; letter-spacing:.55px; color: var(--muted); font-weight: 900; margin-bottom: 8px; }
+  .top5-row { display:flex; gap: 8px; align-items: baseline; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .top5-row.best { color: var(--ink); font-weight: 800; }
+  .top5-pct { margin-left:auto; font-variant-numeric: tabular-nums; }
+
+  .loading, .error { display:none; margin-top: 14px; border-radius: 15px; padding: 13px 15px; border: 1px solid var(--line); background: rgba(255,248,239,.72); color: var(--muted); }
+  .loading.show, .error.show { display:flex; align-items:center; gap: 10px; }
+  .error { color: var(--danger); border-color: rgba(155,45,48,.28); background: rgba(155,45,48,.06); }
+  .spinner { width: 18px; height:18px; border-radius:99px; border: 2px solid rgba(86,28,36,.14); border-top-color: var(--burgundy); animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .placeholder { margin-top: 16px; color: var(--muted); line-height: 1.55; font-size: 13.5px; }
+  .placeholder strong { color: var(--burgundy); }
+  #capture-canvas, #file-input { display:none; }
+
+  @media (max-width: 1200px) {
+    .app { grid-template-columns: 230px 1fr; grid-template-rows: auto auto auto; }
+    .topbar { grid-column: 1 / -1; flex-wrap: wrap; }
+    .sidebar { grid-row: 2 / span 2; }
+    .rightbar { grid-column: 2; padding: 0 18px 24px; }
+    .main { padding-right: 18px; }
+  }
+  @media (max-width: 900px) {
+    .app { display:block; }
+    .topbar, .top-actions { flex-wrap: wrap; }
+    .brand { min-width: unset; }
+    .sidebar, .main, .rightbar { padding: 16px; border: 0; }
+    .items-grid, .top5-grid { grid-template-columns: repeat(2, 1fr); }
+    .recent-strip, .guide-box { grid-template-columns: 1fr; }
+    .camera-actions, .right-actions { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-icon" aria-hidden="true">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M5 9h14l-1.2 8.1A3 3 0 0 1 14.8 20H9.2a3 3 0 0 1-3-2.9L5 9Z" stroke="currentColor" stroke-width="2"/><path d="M8 9V6m4 3V4m4 5V6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M7 13h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </div>
+      <div>
+        <div class="brand-title">Food Detection AI</div>
+        <div class="brand-subtitle">Nhận diện món ăn bằng CNN</div>
+      </div>
+    </div>
+
+    <div class="chip"><span class="dot model"></span>Mô hình: CNN</div>
+    <div class="chip"><span class="dot" id="status-dot"></span><span id="status-label">Chưa kết nối camera</span></div>
+
+    <div class="top-actions">
+      <button class="btn btn-outline" id="btn-start-top">▣ Kết nối camera</button>
+      <button class="btn btn-outline" id="btn-upload">↥ Tải ảnh</button>
+      <button class="btn btn-primary" id="btn-capture-top" disabled>▶ Bắt đầu nhận diện</button>
+      <input id="file-input" type="file" accept="image/*" />
+    </div>
+  </header>
+
+  <aside class="sidebar">
+    <nav class="nav">
+      <div class="nav-item active"><span class="nav-icon">▦</span>Tổng quan</div>
+      <div class="nav-item"><span class="nav-icon">⌖</span>Nhận diện realtime</div>
+      <div class="nav-item"><span class="nav-icon">▧</span>Phân tích ảnh</div>
+      <div class="nav-item"><span class="nav-icon">◷</span>Lịch sử</div>
+      <div class="nav-item"><span class="nav-icon">⚙</span>Cài đặt</div>
+    </nav>
+
+    <div class="side-card">
+      <div class="side-row">
+        <div class="side-icon">◎</div>
+        <div class="side-title">CNN model</div>
+        <div class="online"><span class="dot live" style="width:8px;height:8px;box-shadow:none"></span>Online</div>
+      </div>
+      <div class="side-meta">Phiên bản: v2.1.4<br/>Cập nhật: 12/05/2024</div>
+    </div>
+
+    <div class="side-card">
+      <div class="side-row">
+        <div class="side-icon" style="background:linear-gradient(135deg,#C7B7A3,#9A6B48)">◉</div>
+        <div class="side-title">Camera</div>
+        <div class="online"><span class="dot live" style="width:8px;height:8px;box-shadow:none"></span>Online</div>
+      </div>
+      <div class="side-meta">Camera ngoài USB<br/>Ảnh hiển thị: không xén</div>
+    </div>
+
+    <div class="side-card system-card">
+      <div class="side-title">Trạng thái hệ thống</div>
+      <div class="system-ok"><span class="dot live" style="width:14px;height:14px;box-shadow:none"></span>Tất cả hệ thống hoạt động tốt</div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <section class="panel camera-card">
+      <div class="panel-header">
+        <div class="section-title"><span class="bullet"></span>Ảnh đầu vào / phân loại món ăn</div>
+        <div class="panel-tools">
+          <button class="tool-btn" id="btn-toggle-overlay" title="Ẩn/hiện khung">▣</button>
+          <button class="tool-btn" id="btn-fit" title="Reset khung">↺</button>
+        </div>
+      </div>
+
+      <div class="camera-stage" id="camera-stage">
+        <video id="video" autoplay playsinline muted></video>
+        <img id="preview-img" alt="Ảnh đã tải lên" />
+        <div id="crop-layer"></div>
+        <div class="empty-camera" id="empty-camera">
+          <div>
+            <strong>Chưa có ảnh đầu vào</strong>
+            <span>Kết nối camera hoặc tải ảnh khay cơm. Ảnh sẽ được hiển thị đầy đủ, không bị xén. Bạn có thể kéo và co giãn từng vùng cắt trước khi nhận diện.</span>
+          </div>
+        </div>
+        <div class="flash" id="flash"></div>
+      </div>
+
+      <div class="camera-actions">
+        <button class="btn btn-outline" id="btn-capture-main" disabled>▣ Chụp / nhận diện</button>
+        <button class="btn btn-danger" id="btn-stop" disabled>■ Dừng camera</button>
+        <button class="btn btn-outline" id="btn-refresh">↻ Làm mới kết quả</button>
+      </div>
+
+      <div class="guide-box">
+        <div class="guide-tip">
+          <strong>Cách chỉnh vùng cắt</strong>
+          Kéo trực tiếp từng khung để di chuyển. Kéo các nút ở cạnh hoặc góc để phóng to/thu nhỏ; khung luôn được khóa theo tỷ lệ hình vuông 1:1. Cấu hình được tự động lưu trên trình duyệt và tái sử dụng cho ảnh/camera tiếp theo.
+        </div>
+        <div class="layout-box">
+          <strong>Bố cục khay mặc định</strong>
+          Chọn preset gần đúng trước, sau đó kéo từng khung vào đúng khu vực đồ ăn.
+          <div class="layout-row">
+            <select class="layout-select" id="layout-select">
+              <option value="bottom3" selected>2 ô lớn trên, 3 ô nhỏ dưới</option>
+              <option value="top3">3 ô nhỏ trên, 2 ô lớn dưới</option>
+            </select>
+            <button class="btn btn-soft" id="btn-reset-zones">Reset khung</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="loading" id="loading"><span class="spinner"></span>Đang nhận diện bằng CNN — vui lòng đợi…</div>
+    <div class="error" id="error-box"></div>
+
+    <section class="result-cards" id="result-section">
+      <div class="result-header">
+        <h2>Kết quả từng vùng cắt</h2>
+        <div class="total-badge" id="total-display">0đ</div>
+      </div>
+      <div class="items-grid" id="items-grid"></div>
+      <details class="top5">
+        <summary>Chi tiết Top-5 CNN từng món</summary>
+        <div class="top5-grid" id="top5-grid"></div>
+      </details>
+    </section>
+
+    <section class="panel recent-card">
+      <div class="recent-head">
+        <div class="recent-title">◷ Ảnh gần đây</div>
+        <div class="recent-link">Xem tất cả ›</div>
+      </div>
+      <div class="recent-strip" id="recent-strip">
+        <div class="recent-thumb"></div>
+        <div class="recent-thumb"></div>
+        <div class="recent-thumb"></div>
+      </div>
+    </section>
+  </main>
+
+  <aside class="rightbar">
+    <section class="panel result-panel">
+      <div class="section-title" style="font-size:17px"><span class="bullet"></span>Kết quả nhận diện</div>
+      <div class="result-list" id="summary-list"></div>
+      <p class="placeholder" id="summary-placeholder"><strong>Chưa có kết quả.</strong><br/>Sau khi chụp hoặc tải ảnh, danh sách món và độ tin cậy sẽ hiển thị tại đây.</p>
+    </section>
+
+    <section class="panel result-panel">
+      <div class="section-title" style="font-size:17px"><span class="bullet"></span>Chi tiết nhận diện</div>
+      <table class="detail-table">
+        <thead><tr><th>Vùng cắt</th><th>Món dự đoán</th><th>Độ tin cậy</th></tr></thead>
+        <tbody id="detail-body"></tbody>
+      </table>
+      <p class="placeholder" id="detail-placeholder">Chưa có dữ liệu chi tiết.</p>
+    </section>
+
+    <section class="panel result-panel">
+      <div class="panel-header" style="margin-bottom:0">
+        <div class="section-title" style="font-size:17px"><span class="bullet"></span>Thông số</div>
+        <div style="color:var(--maroon)">⌁</div>
+      </div>
+      <div class="stats-grid">
+        <div class="stat"><div class="stat-label">Độ trễ</div><div class="stat-value" id="stat-latency">—</div></div>
+        <div class="stat"><div class="stat-label">Mô hình đang dùng</div><div class="stat-value" id="stat-model">CNN</div></div>
+        <div class="stat"><div class="stat-label">Số vùng cắt</div><div class="stat-value" id="stat-count">—</div></div>
+        <div class="stat"><div class="stat-label">Thời gian xử lý</div><div class="stat-value" id="stat-processing">—</div></div>
+      </div>
+      <div class="right-actions">
+        <button class="btn btn-soft" id="btn-save">⇩ Lưu kết quả</button>
+        <button class="btn btn-primary" id="btn-export">▣ Xuất báo cáo</button>
+      </div>
+    </section>
+  </aside>
+</div>
+
+<canvas id="capture-canvas"></canvas>
+
+<script>
+const API_ENDPOINT = window.location.protocol === "file:" ? "http://127.0.0.1:5000/predict" : "/predict";
+const COLORS = ["#561C24", "#9A6B48", "#7E7B5D", "#6D2932", "#B59C7C"];
+const ZONES_STORAGE_KEY = "food_detection_cnn_saved_crop_zones_v2_square";
+const LEGACY_ZONES_STORAGE_KEY = "food_detection_cnn_saved_crop_zones_v1";
+
+const PRESETS = {
+  // Khay giống ảnh camera bạn gửi: 2 ô lớn phía trên, 3 ô nhỏ phía dưới.
+  bottom3: [
+    { name:"Món 1", x:.640, y:.565, w:.225, h:.255, color:COLORS[0] },
+    { name:"Món 2", x:.390, y:.565, w:.220, h:.255, color:COLORS[1] },
+    { name:"Món 3", x:.150, y:.565, w:.220, h:.255, color:COLORS[2] },
+    { name:"Món 4", x:.570, y:.155, w:.290, h:.315, color:COLORS[3] },
+    { name:"Món 5", x:.155, y:.155, w:.320, h:.315, color:COLORS[4] },
+  ],
+  // Khay 3 ô nhỏ phía trên, 2 ô lớn phía dưới.
+  top3: [
+    { name:"Món 1", x:.090, y:.110, w:.220, h:.245, color:COLORS[0] },
+    { name:"Món 2", x:.390, y:.110, w:.220, h:.245, color:COLORS[1] },
+    { name:"Món 3", x:.690, y:.110, w:.220, h:.245, color:COLORS[2] },
+    { name:"Món 4", x:.105, y:.530, w:.330, h:.300, color:COLORS[3] },
+    { name:"Món 5", x:.580, y:.530, w:.330, h:.300, color:COLORS[4] },
+  ]
+};
+
+const video = document.getElementById("video");
+const previewImg = document.getElementById("preview-img");
+const cropLayer = document.getElementById("crop-layer");
+const captureCanvas = document.getElementById("capture-canvas");
+const flash = document.getElementById("flash");
+const emptyCamera = document.getElementById("empty-camera");
+const statusDot = document.getElementById("status-dot");
+const statusLabel = document.getElementById("status-label");
+const loading = document.getElementById("loading");
+const errorBox = document.getElementById("error-box");
+const resultSection = document.getElementById("result-section");
+const layoutSelect = document.getElementById("layout-select");
+const fileInput = document.getElementById("file-input");
+const cameraStage = document.getElementById("camera-stage");
+
+const btnStartTop = document.getElementById("btn-start-top");
+const btnUpload = document.getElementById("btn-upload");
+const btnCaptureTop = document.getElementById("btn-capture-top");
+const btnCaptureMain = document.getElementById("btn-capture-main");
+const btnStop = document.getElementById("btn-stop");
+const btnRefresh = document.getElementById("btn-refresh");
+const btnResetZones = document.getElementById("btn-reset-zones");
+const btnToggleOverlay = document.getElementById("btn-toggle-overlay");
+const btnFit = document.getElementById("btn-fit");
+
+let stream = null;
+let uploadedImageData = null;
+let lastResult = null;
+let recentImages = [];
+let canPredict = false;
+let zones = [];
+let overlayVisible = true;
+let dragState = null;
+let rafId = null;
+
+function clonePreset(key) {
+  return (PRESETS[key] || PRESETS.bottom3).map(z => ({ ...z }));
+}
+
+function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+function normalizeZone(zone, fallback, index) {
+  const z = { ...(fallback || {}), ...(zone || {}) };
+  return {
+    name: String(z.name || fallback?.name || `Món ${index + 1}`),
+    x: clamp(Number(z.x ?? fallback?.x ?? 0.1), 0, 0.96),
+    y: clamp(Number(z.y ?? fallback?.y ?? 0.1), 0, 0.96),
+    w: clamp(Number(z.w ?? fallback?.w ?? 0.2), 0.045, 1),
+    h: clamp(Number(z.h ?? fallback?.h ?? 0.2), 0.045, 1),
+    color: z.color || fallback?.color || COLORS[index % COLORS.length]
+  };
+}
+
+function fixZoneBounds(z) {
+  z.w = clamp(z.w, 0.045, 1);
+  z.h = clamp(z.h, 0.045, 1);
+  z.x = clamp(z.x, 0, 1 - z.w);
+  z.y = clamp(z.y, 0, 1 - z.h);
+  return z;
+}
+
+function zoneToSourceRect(z, source) {
+  return {
+    x: z.x * source.w,
+    y: z.y * source.h,
+    side: Math.min(z.w * source.w, z.h * source.h)
+  };
+}
+
+function squareZoneForSource(zone, source) {
+  if (!source || source.w <= 0 || source.h <= 0) return fixZoneBounds(zone);
+
+  const centerX = (zone.x + zone.w / 2) * source.w;
+  const centerY = (zone.y + zone.h / 2) * source.h;
+  const minSide = Math.max(24, Math.min(source.w, source.h) * 0.045);
+  let side = Math.min(zone.w * source.w, zone.h * source.h);
+  side = clamp(side, minSide, Math.min(source.w, source.h));
+
+  let x = clamp(centerX - side / 2, 0, source.w - side);
+  let y = clamp(centerY - side / 2, 0, source.h - side);
+
+  return {
+    ...zone,
+    x: x / source.w,
+    y: y / source.h,
+    w: side / source.w,
+    h: side / source.h
+  };
+}
+
+function ensureZonesSquare() {
+  const source = getSourceSize();
+  if (!source || !zones.length) return;
+  zones = zones.map(zone => squareZoneForSource(zone, source));
+}
+
+function getSavedZones() {
+  try {
+    const raw = localStorage.getItem(ZONES_STORAGE_KEY) || localStorage.getItem(LEGACY_ZONES_STORAGE_KEY);
+    if (!raw) return null;
+    const saved = JSON.parse(raw);
+    if (!saved || !Array.isArray(saved.zones) || saved.zones.length < 5) return null;
+    const layout = PRESETS[saved.layout] ? saved.layout : layoutSelect.value;
+    const fallback = clonePreset(layout);
+    return {
+      layout,
+      zones: saved.zones.slice(0, 5).map((zone, index) => fixZoneBounds(normalizeZone(zone, fallback[index], index)))
+    };
+  } catch (_) {
+    return null;
+  }
+}
+
+function saveZonesToStorage() {
+  if (!zones.length) return;
+  try {
+    localStorage.setItem(ZONES_STORAGE_KEY, JSON.stringify({
+      layout: layoutSelect.value,
+      savedAt: new Date().toISOString(),
+      zones: zones.map(z => ({ name: z.name, x: z.x, y: z.y, w: z.w, h: z.h, color: z.color }))
+    }));
+  } catch (_) {}
+}
+
+function applySavedZonesOrPreset(defaultKey = layoutSelect.value) {
+  const saved = getSavedZones();
+  if (saved) {
+    layoutSelect.value = saved.layout;
+    zones = saved.zones;
+  } else {
+    zones = clonePreset(defaultKey);
+  }
+  ensureZonesSquare();
+  saveZonesToStorage();
+  scheduleRender();
+}
+
+function friendlyName(cls) {
+  const map = {
+    Com: "Cơm",
+    Khac: "Đậu hũ sốt cà",
+    "Đậu hũ sốt cà chua": "Đậu hũ sốt cà",
+    "Đậu hũ sốt cà": "Đậu hũ sốt cà",
+    Nuong: "Nướng",
+    Chien: "Chiên",
+    Kho: "Kho",
+    Xao: "Xào",
+    Canh: "Canh"
+  };
+  return map[cls] || cls;
+}
+
+function fmtPrice(value) {
+  return Number(value || 0).toLocaleString("vi-VN") + "đ";
+}
+
+function setPredictEnabled(enabled) {
+  canPredict = enabled;
+  btnCaptureTop.disabled = !enabled;
+  btnCaptureMain.disabled = !enabled;
+}
+
+function setCameraActive(active) {
+  statusDot.classList.toggle("live", active);
+  statusLabel.textContent = active ? "Camera ngoài: Đã kết nối" : (uploadedImageData ? "Đang dùng ảnh tải lên" : "Chưa kết nối camera");
+  btnStop.disabled = !active;
+}
+
+function showError(message) {
+  errorBox.textContent = message;
+  errorBox.classList.add("show");
+}
+function clearError() { errorBox.classList.remove("show"); errorBox.textContent = ""; }
+
+function getSourceSize() {
+  if (uploadedImageData && previewImg.naturalWidth && previewImg.naturalHeight) {
+    return { w: previewImg.naturalWidth, h: previewImg.naturalHeight };
+  }
+  if (stream && video.videoWidth && video.videoHeight) {
+    return { w: video.videoWidth, h: video.videoHeight };
+  }
+  return null;
+}
+
+function updateStageAspect() {
+  const source = getSourceSize();
+  if (source && source.w > 0 && source.h > 0) {
+    cameraStage.style.setProperty("--stage-aspect", `${source.w} / ${source.h}`);
+  } else {
+    cameraStage.style.setProperty("--stage-aspect", "16 / 9");
+  }
+}
+
+function getStageRect() {
+  const r = cameraStage.getBoundingClientRect();
+  return { x: 0, y: 0, w: r.width, h: r.height };
+}
+
+function getMediaRect() {
+  const stage = getStageRect();
+  const source = getSourceSize();
+  if (!source) return { x: 0, y: 0, w: stage.w, h: stage.h };
+  const sourceRatio = source.w / source.h;
+  const stageRatio = stage.w / stage.h;
+  let w, h, x, y;
+  if (sourceRatio > stageRatio) {
+    w = stage.w;
+    h = stage.w / sourceRatio;
+    x = 0;
+    y = (stage.h - h) / 2;
+  } else {
+    h = stage.h;
+    w = stage.h * sourceRatio;
+    x = (stage.w - w) / 2;
+    y = 0;
+  }
+  return { x, y, w, h };
+}
+
+function normalizedToDisplay(z, media) {
+  return {
+    left: media.x + z.x * media.w,
+    top: media.y + z.y * media.h,
+    width: z.w * media.w,
+    height: z.h * media.h,
+  };
+}
+
+function getUnionDisplayRect(media) {
+  if (!zones.length) return { left: media.x, top: media.y, width: media.w, height: media.h };
+  const rects = zones.map(z => normalizedToDisplay(z, media));
+  const left = Math.min(...rects.map(r => r.left));
+  const top = Math.min(...rects.map(r => r.top));
+  const right = Math.max(...rects.map(r => r.left + r.width));
+  const bottom = Math.max(...rects.map(r => r.top + r.height));
+  const pad = 14;
+  return {
+    left: Math.max(media.x, left - pad),
+    top: Math.max(media.y, top - pad),
+    width: Math.min(media.x + media.w, right + pad) - Math.max(media.x, left - pad),
+    height: Math.min(media.y + media.h, bottom + pad) - Math.max(media.y, top - pad),
+  };
+}
+
+function renderCropBoxes() {
+  ensureZonesSquare();
+  if (!overlayVisible) {
+    cropLayer.style.display = "none";
+    return;
+  }
+  cropLayer.style.display = "block";
+  const source = getSourceSize();
+  cropLayer.innerHTML = "";
+  if (!source) return;
+
+  const media = getMediaRect();
+  const union = getUnionDisplayRect(media);
+  const guide = document.createElement("div");
+  guide.className = "guide-frame";
+  guide.style.left = `${union.left}px`;
+  guide.style.top = `${union.top}px`;
+  guide.style.width = `${union.width}px`;
+  guide.style.height = `${union.height}px`;
+  guide.innerHTML = `<span class="guide-corner tl"></span><span class="guide-corner tr"></span><span class="guide-corner bl"></span><span class="guide-corner br"></span>`;
+  cropLayer.appendChild(guide);
+
+  zones.forEach((z, index) => {
+    const d = normalizedToDisplay(z, media);
+    const box = document.createElement("div");
+    box.className = "crop-box";
+    box.dataset.index = String(index);
+    box.style.setProperty("--box-color", z.color || COLORS[index % COLORS.length]);
+    box.style.left = `${d.left}px`;
+    box.style.top = `${d.top}px`;
+    box.style.width = `${d.width}px`;
+    box.style.height = `${d.height}px`;
+    const pxW = Math.round(z.w * source.w);
+    const pxH = Math.round(z.h * source.h);
+    const handles = ["nw","n","ne","e","se","s","sw","w"]
+      .map(h => `<span class="resize-handle" data-handle="${h}"></span>`).join("");
+    box.innerHTML = `<span class="crop-label">${z.name}</span><span class="crop-size">${pxW}×${pxH}</span>${handles}`;
+    box.addEventListener("pointerdown", startDrag);
+    cropLayer.appendChild(box);
+  });
+}
+
+function scheduleRender() {
+  if (rafId) return;
+  rafId = requestAnimationFrame(() => {
+    rafId = null;
+    renderCropBoxes();
+  });
+}
+
+function resetZones(key = layoutSelect.value) {
+  zones = clonePreset(key).map((zone, index) => fixZoneBounds(normalizeZone(zone, zone, index)));
+  ensureZonesSquare();
+  saveZonesToStorage();
+  scheduleRender();
+}
+
+function startDrag(event) {
+  const box = event.target.closest(".crop-box");
+  if (!box) return;
+  const index = Number(box.dataset.index);
+  if (!Number.isFinite(index) || !zones[index]) return;
+  event.preventDefault();
+  try { box.setPointerCapture(event.pointerId); } catch (_) {}
+  document.querySelectorAll(".crop-box").forEach(el => el.classList.remove("active"));
+  box.classList.add("active");
+  const handle = event.target.closest(".resize-handle");
+  const source = getSourceSize();
+  ensureZonesSquare();
+  const startZone = { ...zones[index] };
+  const startRect = source ? zoneToSourceRect(startZone, source) : null;
+  dragState = {
+    pointerId: event.pointerId,
+    index,
+    mode: handle ? handle.dataset.handle : "move",
+    startX: event.clientX,
+    startY: event.clientY,
+    startZone,
+    startRect,
+    source,
+    media: getMediaRect(),
+  };
+}
+
+function dominantSignedDelta(a, b) {
+  return Math.abs(a) >= Math.abs(b) ? a : b;
+}
+
+function resizeSquareRect(start, mode, dx, dy, source) {
+  const W = source.w;
+  const H = source.h;
+  const minSide = Math.max(24, Math.min(W, H) * 0.045);
+  const x1 = start.x;
+  const y1 = start.y;
+  const side0 = start.side;
+  const x2 = x1 + side0;
+  const y2 = y1 + side0;
+  const cx = x1 + side0 / 2;
+  const cy = y1 + side0 / 2;
+
+  let growth = 0;
+  let maxSide = Math.min(W, H);
+  let side = side0;
+  let x = x1;
+  let y = y1;
+
+  if (mode === "nw") {
+    growth = dominantSignedDelta(-dx, -dy);
+    maxSide = Math.min(x2, y2);
+    side = clamp(side0 + growth, minSide, maxSide);
+    x = x2 - side;
+    y = y2 - side;
+  } else if (mode === "ne") {
+    growth = dominantSignedDelta(dx, -dy);
+    maxSide = Math.min(W - x1, y2);
+    side = clamp(side0 + growth, minSide, maxSide);
+    x = x1;
+    y = y2 - side;
+  } else if (mode === "se") {
+    growth = dominantSignedDelta(dx, dy);
+    maxSide = Math.min(W - x1, H - y1);
+    side = clamp(side0 + growth, minSide, maxSide);
+    x = x1;
+    y = y1;
+  } else if (mode === "sw") {
+    growth = dominantSignedDelta(-dx, dy);
+    maxSide = Math.min(x2, H - y1);
+    side = clamp(side0 + growth, minSide, maxSide);
+    x = x2 - side;
+    y = y1;
+  } else if (mode === "e") {
+    growth = dx;
+    maxSide = Math.min(W - x1, 2 * cy, 2 * (H - cy));
+    side = clamp(side0 + growth, minSide, maxSide);
+    x = x1;
+    y = cy - side / 2;
+  } else if (mode === "w") {
+    growth = -dx;
+    maxSide = Math.min(x2, 2 * cy, 2 * (H - cy));
+    side = clamp(side0 + growth, minSide, maxSide);
+    x = x2 - side;
+    y = cy - side / 2;
+  } else if (mode === "s") {
+    growth = dy;
+    maxSide = Math.min(H - y1, 2 * cx, 2 * (W - cx));
+    side = clamp(side0 + growth, minSide, maxSide);
+    x = cx - side / 2;
+    y = y1;
+  } else if (mode === "n") {
+    growth = -dy;
+    maxSide = Math.min(y2, 2 * cx, 2 * (W - cx));
+    side = clamp(side0 + growth, minSide, maxSide);
+    x = cx - side / 2;
+    y = y2 - side;
+  }
+
+  return {
+    x: clamp(x, 0, W - side),
+    y: clamp(y, 0, H - side),
+    side
+  };
+}
+
+function handlePointerMove(event) {
+  if (!dragState) return;
+  event.preventDefault();
+  const media = dragState.media;
+  const source = dragState.source;
+  const start = dragState.startRect;
+  if (!source || !start || !media.w || !media.h) return;
+
+  const dx = (event.clientX - dragState.startX) * (source.w / media.w);
+  const dy = (event.clientY - dragState.startY) * (source.h / media.h);
+  const z = zones[dragState.index];
+
+  let rect;
+  if (dragState.mode === "move") {
+    rect = {
+      x: clamp(start.x + dx, 0, source.w - start.side),
+      y: clamp(start.y + dy, 0, source.h - start.side),
+      side: start.side
+    };
+  } else {
+    rect = resizeSquareRect(start, dragState.mode, dx, dy, source);
+  }
+
+  z.x = rect.x / source.w;
+  z.y = rect.y / source.h;
+  z.w = rect.side / source.w;
+  z.h = rect.side / source.h;
+  scheduleRender();
+}
+
+function handlePointerUp() {
+  if (!dragState) return;
+  dragState = null;
+  ensureZonesSquare();
+  saveZonesToStorage();
+}
+
+document.addEventListener("pointermove", handlePointerMove);
+document.addEventListener("pointerup", handlePointerUp);
+document.addEventListener("pointercancel", handlePointerUp);
+
+async function startCamera() {
+  clearError();
+  try {
+    uploadedImageData = null;
+    previewImg.classList.remove("show");
+    previewImg.removeAttribute("src");
+    video.classList.remove("hidden");
+
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "environment" },
+      audio: false
+    });
+    video.srcObject = stream;
+    await video.play();
+    updateStageAspect();
+    emptyCamera.classList.add("hide");
+    setCameraActive(true);
+    setPredictEnabled(true);
+    applySavedZonesOrPreset(layoutSelect.value);
+    scheduleRender();
+  } catch (error) {
+    showError("Không mở được camera. Nên chạy bằng http://localhost:5000 thay vì mở file trực tiếp. Chi tiết: " + error.message);
+    setCameraActive(false);
+  }
+}
+
+function stopCamera() {
+  if (stream) {
+    stream.getTracks().forEach(track => track.stop());
+    stream = null;
+  }
+  video.srcObject = null;
+  setCameraActive(false);
+  if (!uploadedImageData) {
+    emptyCamera.classList.remove("hide");
+    setPredictEnabled(false);
+  }
+}
+
+function captureFromCamera() {
+  if (!stream || !video.videoWidth || !video.videoHeight) throw new Error("Camera chưa sẵn sàng");
+  captureCanvas.width = video.videoWidth;
+  captureCanvas.height = video.videoHeight;
+  captureCanvas.getContext("2d").drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
+  return captureCanvas.toDataURL("image/jpeg", .92);
+}
+
+function getBoxesForBackend() {
+  const source = getSourceSize();
+  if (!source) return [];
+  ensureZonesSquare();
+  return zones.map(z => {
+    const centerX = (z.x + z.w / 2) * source.w;
+    const centerY = (z.y + z.h / 2) * source.h;
+    const side = Math.max(12, Math.round(Math.min(z.w * source.w, z.h * source.h)));
+    const x = Math.round(clamp(centerX - side / 2, 0, source.w - side));
+    const y = Math.round(clamp(centerY - side / 2, 0, source.h - side));
+    return {
+      name: z.name,
+      x,
+      y,
+      w: side,
+      h: side,
+      unit: "pixel"
+    };
+  });
+}
+
+async function predictCurrentFrame() {
+  clearError();
+  if (!canPredict) return showError("Hãy kết nối camera hoặc tải ảnh trước khi nhận diện.");
+  if (!zones.length) return showError("Chưa có vùng cắt. Hãy bấm Reset khung.");
+
+  flash.classList.add("active");
+  setTimeout(() => flash.classList.remove("active"), 130);
+
+  const imageData = uploadedImageData || captureFromCamera();
+  const boxes = getBoxesForBackend();
+  addRecentImage(imageData);
+
+  loading.classList.add("show");
+  resultSection.classList.remove("show");
+  setPredictEnabled(false);
+
+  try {
+    const response = await fetch(API_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image: imageData, boxes, layout: layoutSelect.value })
+    });
+    const data = await response.json();
+    if (!response.ok || data.error) throw new Error(data.error || "Không nhận được kết quả hợp lệ");
+    lastResult = data;
+    renderResults(data);
+  } catch (error) {
+    showError("Lỗi nhận diện: " + error.message + " — hãy chắc chắn đã chạy `python app.py` và mở http://localhost:5000");
+  } finally {
+    loading.classList.remove("show");
+    setPredictEnabled(true);
+  }
+}
+
+function handleUpload(file) {
+  if (!file) return;
+  clearError();
+  const reader = new FileReader();
+  reader.onload = () => {
+    uploadedImageData = reader.result;
+    stopCamera();
+    video.classList.add("hidden");
+    previewImg.onload = () => {
+      updateStageAspect();
+      emptyCamera.classList.add("hide");
+      statusLabel.textContent = "Đang dùng ảnh tải lên";
+      setPredictEnabled(true);
+      applySavedZonesOrPreset(layoutSelect.value);
+      scheduleRender();
+    };
+    previewImg.src = uploadedImageData;
+    previewImg.classList.add("show");
+  };
+  reader.onerror = () => showError("Không đọc được ảnh tải lên.");
+  reader.readAsDataURL(file);
+}
+
+function resetUI() {
+  clearError();
+  lastResult = null;
+  resultSection.classList.remove("show");
+  document.getElementById("summary-list").innerHTML = "";
+  document.getElementById("detail-body").innerHTML = "";
+  document.getElementById("summary-placeholder").style.display = "block";
+  document.getElementById("detail-placeholder").style.display = "block";
+  document.getElementById("stat-latency").textContent = "—";
+  document.getElementById("stat-count").textContent = "—";
+  document.getElementById("stat-processing").textContent = "—";
+  const modelEl = document.getElementById("stat-model");
+  if (modelEl) modelEl.textContent = "CNN";
+}
+
+function addRecentImage(src) {
+  const now = new Date();
+  const time = now.toLocaleTimeString("vi-VN", { hour12:false, hour:"2-digit", minute:"2-digit", second:"2-digit" });
+  recentImages.unshift({ src, time });
+  recentImages = recentImages.slice(0, 3);
+  renderRecentImages();
+}
+
+function renderRecentImages() {
+  const strip = document.getElementById("recent-strip");
+  strip.innerHTML = "";
+  for (let i = 0; i < 3; i++) {
+    const box = document.createElement("div");
+    box.className = "recent-thumb";
+    if (recentImages[i]) box.innerHTML = `<img src="${recentImages[i].src}" alt="Ảnh gần đây ${i+1}"/><span class="time-badge">${recentImages[i].time}</span>`;
+    strip.appendChild(box);
+  }
+}
+
+function renderResults(data) {
+  const items = data.items || [];
+
+  document.getElementById("total-display").textContent = fmtPrice(data.total);
+  document.getElementById("stat-latency").textContent = data.processing_ms ? Math.round(data.processing_ms) + " ms" : "—";
+  document.getElementById("stat-count").textContent = String(items.length || 0);
+  document.getElementById("stat-processing").textContent = data.processing_ms ? (data.processing_ms / 1000).toFixed(3) + " s" : "—";
+  const modelEl = document.getElementById("stat-model");
+  if (modelEl) modelEl.textContent = "CNN";
+
+  const grid = document.getElementById("items-grid");
+  grid.innerHTML = "";
+  items.forEach((it, i) => {
+    const c = COLORS[i % COLORS.length];
+    const conf = Math.max(0, Math.min(Number(it.cnn_prob || 0), 100));
+    const card = document.createElement("div");
+    card.className = "item-card";
+    card.innerHTML = `
+      <div class="item-bar" style="background:${c}"></div>
+      <img class="item-thumb" src="data:image/jpeg;base64,${it.thumb_b64}" alt="${it.name}"/>
+      <div class="item-body">
+        <div class="item-label">${it.name}</div>
+        <div class="item-class">${friendlyName(it.final_class)}</div>
+        <div class="item-price">${fmtPrice(it.price)}</div>
+        <div class="item-conf">Độ tin cậy: ${conf.toFixed(2)}%</div>
+        <div class="conf-track"><div class="conf-fill" style="width:${conf}%; background:${c}"></div></div>
+      </div>`;
+    grid.appendChild(card);
+  });
+
+  const summary = document.getElementById("summary-list");
+  summary.innerHTML = "";
+  items.forEach((it, i) => {
+    const c = COLORS[i % COLORS.length];
+    const row = document.createElement("div");
+    row.className = "result-row";
+    row.innerHTML = `<span class="result-dot" style="background:${c}"></span><span class="result-name">${friendlyName(it.final_class)}</span><span class="pct">${Number(it.cnn_prob || 0).toFixed(0)}%</span><span class="chev">›</span>`;
+    summary.appendChild(row);
+  });
+  document.getElementById("summary-placeholder").style.display = items.length ? "none" : "block";
+
+  const detail = document.getElementById("detail-body");
+  detail.innerHTML = "";
+  items.forEach(it => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${it.name}</td><td>${friendlyName(it.final_class)}</td><td><strong>${Number(it.cnn_prob || 0).toFixed(2)}%</strong></td>`;
+    detail.appendChild(tr);
+  });
+  document.getElementById("detail-placeholder").style.display = items.length ? "none" : "block";
+
+  const top5grid = document.getElementById("top5-grid");
+  top5grid.innerHTML = "";
+  items.forEach((it, i) => {
+    const c = COLORS[i % COLORS.length];
+    const col = document.createElement("div");
+    col.className = "top5-col";
+    const rows = (it.top5 || []).map((r, j) => `<div class="top5-row ${j === 0 ? "best" : ""}"><span>${friendlyName(r.class)}</span><span class="top5-pct">${Number(r.prob || 0).toFixed(2)}%</span></div>`).join("");
+    col.innerHTML = `<div class="top5-title" style="color:${c}">${it.name}</div>${rows}`;
+    top5grid.appendChild(col);
+  });
+
+  resultSection.classList.add("show");
+}
+
+btnStartTop.addEventListener("click", startCamera);
+btnUpload.addEventListener("click", () => fileInput.click());
+fileInput.addEventListener("change", event => handleUpload(event.target.files[0]));
+btnCaptureTop.addEventListener("click", predictCurrentFrame);
+btnCaptureMain.addEventListener("click", predictCurrentFrame);
+btnStop.addEventListener("click", stopCamera);
+btnRefresh.addEventListener("click", resetUI);
+btnResetZones.addEventListener("click", () => resetZones(layoutSelect.value));
+btnFit.addEventListener("click", () => resetZones(layoutSelect.value));
+layoutSelect.addEventListener("change", () => resetZones(layoutSelect.value));
+btnToggleOverlay.addEventListener("click", () => { overlayVisible = !overlayVisible; scheduleRender(); });
+window.addEventListener("resize", scheduleRender);
+video.addEventListener("loadedmetadata", () => { updateStageAspect(); scheduleRender(); });
+previewImg.addEventListener("load", () => { updateStageAspect(); scheduleRender(); });
+
+document.getElementById("btn-save").addEventListener("click", () => {
+  if (!lastResult) return showError("Chưa có kết quả để lưu.");
+  const blob = new Blob([JSON.stringify({ result:lastResult, boxes:getBoxesForBackend() }, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "ket_qua_nhan_dien_cnn.json";
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById("btn-export").addEventListener("click", () => {
+  if (!lastResult) return showError("Chưa có kết quả để xuất báo cáo.");
+  window.print();
+});
+
+applySavedZonesOrPreset(layoutSelect.value);
+updateStageAspect();
+setPredictEnabled(false);
+renderRecentImages();
+scheduleRender();
+</script>
+</body>
+</html>
