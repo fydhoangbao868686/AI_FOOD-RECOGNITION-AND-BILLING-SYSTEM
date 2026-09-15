@@ -74,7 +74,7 @@ The application does not require MySQL, a database service, or an external AI AP
 | `model/Xao_CNN_Best(v2).h5` | Stir-fried-dish classifier weights — must be supplied |
 | `model/model.pt` | YOLO egg-detector weights — must be supplied for egg detection |
 | `README.md` | Project overview and usage instructions |
-| `README_THAY_THE.txt` | Earlier replacement instructions included in the archive |
+
 
 ## Setup and local execution
 
